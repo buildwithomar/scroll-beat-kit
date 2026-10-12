@@ -1,0 +1,225 @@
+/* beat-engine.css — the scaffolding a beat deck needs, and nothing else.
+ *
+ * No colours, no type, no shadows: this is the four boxes that make a pinned
+ * scroll sequence behave, plus the two conventions (scale wrapper, roll window)
+ * that let one composition serve every screen. Style the stage's contents in
+ * your own CSS.
+ *
+ *   .bs-deck    the tall element. Height is written by the engine — never set
+ *               it here, or it will drift out of step with the cut.
+ *   .bs-pin     the sticky screen. Carries the vars draw() writes with f.set()
+ *               — keep those to values that change rarely: a var on the pin
+ *               restyles the whole deck each time it changes. Per-frame values
+ *               go on the element that uses them.
+ *   .bs-stage   the composition's own box: one max-width, centred. This is the
+ *               REFERENCE the whole sequence is designed against.
+ *   .bs-scale   the wrapper that gets scaled to fit. Everything that must keep
+ *               its proportions across screens goes inside it.
+ */
+
+.bs-deck { position: relative; }
+
+.bs-pin {
+  position: sticky;
+  top: 0;
+  /* until the engine runs. It then writes a PIXEL height from its locked
+     viewport, so a phone's sliding address bar never resizes the pin */
+  height: 100vh;
+  /* Let travel leave the pin's own box: a beat that flies a chip in from
+     off-stage is clipped by the pin otherwise, and the fix people reach for
+     (overflow:hidden on an ancestor) clips the whole sequence. Clipping is
+     handled once, at the section, below. */
+  overflow: visible;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.bs-stage {
+  position: relative;
+  width: 100%;
+  max-width: var(--bs-ref, 1100px);
+  margin: 0 auto;
+  /* The visual answers to ITS OWN box, not the viewport: inside the stage use
+     @container bs-stage (...) and cqw units, never @media / vw. In a layout
+     where text sits beside the visual, the stage is half the screen — a rule
+     keyed to the viewport sizes it for room it does not have. Safe because
+     the stage's width never depends on its content (width:100%). */
+  container: bs-stage / inline-size;
+}
+
+/* ── layouts: where the TEXT sits relative to the VISUAL ──────────────────
+   A deck is two things in the pin: .bs-text (the narrator: tabs + relay) and
+   .bs-stage (the visual: whatever media or mock-up the story needs). Choose
+   their arrangement with ONE attribute on the deck:
+
+     <div class="bs-deck" data-layout="stack">          text above the visual (default)
+                          data-layout="stack-below"     text below it
+                          data-layout="split"           text left, visual right
+                          data-layout="split-reverse"   visual left, text right
+
+   The split layouts fall back to stack at 820px and under: half a phone is
+   not room for either the copy or the visual. Tune with --bs-text-share (the
+   text column's width), --bs-gap (the space between) and --bs-split-max.
+   The engine never reads the layout — every budget in draw() measures the
+   stage it is given, so the same choreography works in all four. */
+.bs-pin { gap: var(--bs-gap, clamp(28px, 4vw, 48px)); }
+.bs-text { width: 100%; max-width: var(--bs-ref, 1100px); margin: 0 auto; }
+.bs-deck[data-layout="stack-below"] .bs-pin { flex-direction: column-reverse; }
+@media (min-width: 821px) {
+  .bs-deck[data-layout="split"] .bs-pin,
+  .bs-deck[data-layout="split-reverse"] .bs-pin {
+    flex-direction: row;
+    max-width: var(--bs-split-max, 1320px);
+    margin: 0 auto;
+    padding: 0 clamp(20px, 3vw, 40px);
+  }
+  .bs-deck[data-layout="split-reverse"] .bs-pin { flex-direction: row-reverse; }
+  .bs-deck[data-layout^="split"] .bs-text {
+    flex: 0 0 var(--bs-text-share, 36%);
+    max-width: none;
+    margin: 0;
+  }
+  .bs-deck[data-layout^="split"] .bs-stage {
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: none;
+    margin: 0;
+  }
+}
+
+/* ── the one scale ────────────────────────────────────────────────────────
+   Every screen gets the SAME composition, scaled. The alternative — rewriting
+   each beat's geometry per breakpoint — is how a sequence ends up landing
+   perfectly on a desktop and half off-screen on a phone, and it triples the
+   number of states to check.
+   will-change is worth its cost here: this transform changes on most frames. */
+.bs-scale {
+  transform: scale(var(--bsScale, 1));
+  transform-origin: center center;
+  will-change: transform;
+}
+
+/* ── clipping, decided once ───────────────────────────────────────────────
+   Content is cut at the VIEWPORT, not at the pin. Put this on the section that
+   contains the deck. `clip` rather than `hidden` so it cannot become a scroll
+   container (a scrollable ancestor breaks position:sticky in subtle ways), and
+   overflow-x on the root so a wide beat can never hand the reader a sideways
+   scrollbar.
+
+   The trade is deliberate: anything that must stay readable has to be made to
+   FIT (see the fit budget in docs/responsive.md). Removing the clip trades
+   a clipped edge for a page that scrolls sideways on a phone, which is worse. */
+.bs-section { position: relative; overflow: clip; }
+html, body { overflow-x: clip; }
+
+/* ── the narrator: a RELAY of rows (the default) ─────────────────────────
+   BeatScroll.rows() + f.relay(). Every block is stacked in the same box, and
+   its text is revealed and retired ROW BY ROW, top row first: the outgoing
+   block leaves completely before the incoming one starts. Two messages are
+   never on screen together, and because each row only travels a fraction of
+   its own line height while it fades, nothing is masked — no frame edge for a
+   rising row to be sliced by. The box height is written by rows().measure().
+   Words are inline-block so they can take a transform (inline boxes ignore
+   one); the whitespace between them stays text, so lines wrap as authored.
+   text-decoration does not reach inside an inline-block, and the parent keeps
+   painting it on the gaps between words — so rows() moves an underlined
+   <em>/<a>'s decoration onto its words, or a hidden row leaves stray dots. */
+.bs-relay { position: relative; }
+.bs-relay > .bs-line {
+  position: absolute;
+  inset: 0 0 auto 0;
+  pointer-events: none;
+}
+.bs-relay > .bs-line[data-bs-top] { pointer-events: auto; }
+.bs-w { display: inline-block; }
+
+/* ── the narrator, alternative: a masked window lines ROLL through ────────
+   Optional, but this is the pattern that keeps a thread of copy running through
+   the whole sequence without ever going dark. Each line is absolutely stacked
+   in the same window; presence (--n-<beat>) becomes travel, so the outgoing
+   line slides up and out of the top edge as the incoming one slides up and in
+   from the bottom. At every point of a hand-off there is text in the window,
+   and it is never two lines printed on the same spot.
+   Cross-FADING two lines in place sums to a full-strength window but prints
+   both messages on top of each other when parked mid-hand-off. Roll, do not
+   blend. */
+.bs-roll { position: relative; overflow: hidden; }
+.bs-roll > .bs-line {
+  position: absolute;
+  inset: 0 0 auto 0;
+  opacity: var(--n, 1);
+  transform: translate3d(0, var(--r, 0px), 0);
+  will-change: transform, opacity;
+}
+/* the line that is currently strongest is the only one that takes pointer
+   events, so a link in a parked line is not clickable through the mask */
+.bs-roll > .bs-line { pointer-events: none; }
+.bs-roll > .bs-line[data-bs-top] { pointer-events: auto; }
+
+/* ── beat tabs ────────────────────────────────────────────────────────────
+   Structure only — the look belongs to the page, like everything else here.
+   The engine builds the chips (opt in with `tabs:`) and gives each one:
+     --on     that beat's presence, 0..1 — crossfades through a hand-off
+     .is-on   on the single strongest beat — for anything that must be binary
+   The row must sit OUTSIDE .bs-roll, or it rolls away with the copy. */
+.bs-tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+.bs-tab {
+  appearance: none;
+  -webkit-appearance: none;
+  font: inherit;
+  margin: 0;
+  cursor: pointer;
+  /* a tab is a jump, not a form control: no default chrome, and it must not
+     become a tap-target that steals the scroll on a phone */
+  touch-action: manipulation;
+}
+.bs-tab:not(button) { cursor: default; }
+
+/* ── reduced motion ───────────────────────────────────────────────────────
+   The engine collapses the deck and draws one resting frame; these rules stop
+   anything else in the stage from moving, and make sure copy that was revealed
+   by the sequence is legible on arrival. Ship the end state, never a blank. */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .bs-deck[data-bs-static] .bs-pin {
+    position: static;
+    height: auto;
+    padding: 48px 0;
+  }
+  .bs-deck[data-bs-static] .bs-scale { transform: none; }
+  .bs-deck[data-bs-static] .bs-roll { overflow: visible; }
+  .bs-deck[data-bs-static] .bs-roll > .bs-line,
+  .bs-deck[data-bs-static] .bs-relay > .bs-line {
+    position: relative;
+    inset: auto;
+    opacity: 1;
+    transform: none;
+  }
+  /* rows() stacks the blocks with INLINE styles, so un-stacking them here
+     needs !important */
+  .bs-deck[data-bs-static] .bs-relay { height: auto !important; }
+  .bs-deck[data-bs-static] .bs-relay > .bs-line {
+    position: relative !important;
+    top: auto !important; left: auto !important; right: auto !important;
+  }
+  .bs-deck[data-bs-static] .bs-w { opacity: 1 !important; transform: none !important; }
+  .bs-deck[data-bs-static] * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* ── no JavaScript ────────────────────────────────────────────────────────
+   Without the engine the deck has no height and no vars, so the stage would
+   collapse to a single screen of whatever the CSS defaults to. Give it the
+   static treatment instead: add `bs-nojs` to <html> and let the engine remove
+   it, so a failed script degrades to the readable end state. */
+.bs-nojs .bs-deck { height: auto !important; }
+.bs-nojs .bs-pin { position: static; height: auto; padding: 48px 0; }
+.bs-nojs .bs-scale { transform: none; }
+.bs-nojs .bs-roll { overflow: visible; }
+.bs-nojs .bs-roll > .bs-line { position: relative; inset: auto; opacity: 1; transform: none; }
+/* the relay class is added by rows(), so without JS there is nothing to undo:
+   the blocks are plain stacked copy */

@@ -1,0 +1,64 @@
+/* brand.css — EVERY visual decision the deck makes, in one file.
+ *
+ * This default is the neutral WIREFRAME: grey, dotted, dashed, labelled. It is
+ * an absence of a brand, not a brand. Rebranding a deck is replacing this one
+ * file — nothing in the deck's own CSS carries a colour, a face, a radius or a
+ * motion feel of its own.
+ *
+ *   node scripts/brand-from-url.cjs https://their-site.com --out brand.css
+ *
+ * writes a filled-in copy from the live site (computed colours, the faces it
+ * actually renders, its button shape, its logo), with contrast checks. Preview
+ * any brand file on the demo with  demo.html?brand=path/to/brand.css
+ *
+ * The token NAMES are the contract. Add tokens if a design needs them; never
+ * hard-code a value in the deck that belongs here.
+ */
+:root {
+  /* ── colour ─────────────────────────────────────────────────────────────── */
+  --bg:        #f3f3f0;   /* page */
+  --panel:     #fbfbf9;   /* raised surfaces: the subject, sheets, tabs */
+  --ink:       #1f1f1d;   /* primary text */
+  --dim:       #77776f;   /* secondary text */
+  --line:      #a6a69e;   /* hairlines, borders */
+  --accent:    #1f1f1d;   /* "this is the interesting bit": CTAs, active tab, emphasis */
+  --on-accent: #fbfbf9;   /* text on an --accent fill */
+  --good:      #1f1f1d;   /* success/winning state ONLY — = accent if the brand has none */
+  --fill:      #e6e6e1;   /* placeholder content blocks inside the visual */
+  --fill-strong: #d6d6d0;
+
+  /* ── type ───────────────────────────────────────────────────────────────── */
+  --font-display: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-body:    ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono:    ui-monospace, SFMono-Regular, Menlo, monospace;
+  --display-weight: 600;
+  --display-tracking: -0.015em;
+  /* how the narrator marks its emphasised words (<em>) */
+  --em-color: inherit;
+  --em-decoration: underline dotted var(--dim);
+
+  /* ── shape ──────────────────────────────────────────────────────────────── */
+  --radius: 12px;              /* the subject and sheets */
+  --radius-pill: 99px;         /* tabs, chips, buttons */
+  --edge: 1.5px dashed var(--line);         /* every quiet border */
+  --edge-strong: 1.5px solid var(--ink);    /* borders that must read */
+  --shadow: none;                           /* raised surfaces */
+
+  /* ── surface ────────────────────────────────────────────────────────────── */
+  --surface-image: radial-gradient(#c8c8c1 1px, transparent 1.3px);
+  --surface-size: 16px 16px;
+
+  /* ── logo (optional) ────────────────────────────────────────────────────── */
+  --brand-logo: none;          /* url(...) — shown where the deck has a logo slot */
+  --logo-height: 0px;          /* the slot's height; 0 hides it */
+
+  /* ── motion: how the narrator's rows feel ───────────────────────────────── */
+  --bs-row-dur: 0.5;           /* share of the hand-off window ONE row takes (lower = snappier stagger) */
+  --bs-rise: 0.55;             /* em a row rises from as it enters */
+  --bs-lift: 0.32;             /* em a row lifts by as it exits */
+  --bs-relay: 0.032;           /* story time each side of a hand-off */
+
+  /* ── wireframe annotations ──────────────────────────────────────────────── */
+  --wf-labels: block;          /* role labels + layout switcher. Brands set: none */
+  --wf-outline: 1.5px dashed var(--line);   /* outlines that exist only to show a box. Brands set: none */
+}

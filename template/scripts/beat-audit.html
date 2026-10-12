@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>beat audit</title>
+<!-- Walks EVERY painted element inside the pin and reports anything crossing
+     the viewport edge — at one beat, or across the whole sequence.
+
+       beat-audit.html?src=../gallery.html&w=390&h=844
+         &scan=1        walk EVERY beat: each beat's opening, midpoint and
+                        close, read from the engine's own beat map, so the scan
+                        covers whatever beats the page actually has  (default)
+         &p=0.87        one story-time point instead
+         &q=0.5         one SCROLL-fraction point instead
+         &pin=.bs-pin   which subtree to walk          (default .bs-pin)
+         &ignore=.card--a,.lane   selectors that leave frame ON PURPOSE
+
+     Why walk everything rather than a list of the elements you are worried
+     about: a hand-written list passes while the thing you did not think of is
+     chopped mid-word. An earlier version of this checked five named elements
+     and reported PASS on a phone that was slicing a whole chip row in half.
+     If you only check what you thought to check, you only find what you
+     already suspected.
+
+     Why scan by the ENGINE'S map rather than a grid of scroll fractions: the
+     cut makes scroll fraction and story time different things, so a hand-typed
+     grid silently checks the wrong moments. Asking the page where its beats
+     are cannot drift.
+
+     "Painted" = bigger than 2x2, opacity above 0.02 on the element AND every
+     ancestor up to the pin, not visibility:hidden, not display:none. The
+     outermost offender is named rather than its children, because that is the
+     thing you go and move.
+
+     Serve the folder over HTTP. On file:// Chrome treats each local file as its
+     own origin, so this harness cannot see into the iframe, silently fails to
+     seek, and shows you an unscrolled page that looks exactly like a rendering
+     bug. -->
+<style>
+html,body{margin:0;background:#07090e;color:#8f8;font:12px/1.45 ui-monospace,Menlo,monospace}
+#out{padding:10px;white-space:pre}
+#f{border:0;display:block;background:#000}
+.bad{color:#f88}
+</style>
+</head>
+<body>
+<pre id="out">measuring…</pre>
+<iframe id="f"></iframe>
+<script>
+const qs   = new URLSearchParams(location.search);
+const SRC  = qs.get('src') || '../gallery.html';
+const PIN  = qs.get('pin') || '.bs-pin';
+const W    = +(qs.get('w') || 390);
+const H    = +(qs.get('h') || 844);
+const P    = qs.get('p') === null ? null : +qs.get('p');
+const Q    = qs.get('q') === null ? null : +qs.get('q');
+const SCAN = qs.get('scan') !== null ? qs.get('scan') !== '0' : (P === null && Q === null);
+const IGN  = (qs.get('ignore') || '').split(',').map(s => s.trim()).filter(Boolean);
+const CLIP = qs.get('clip') !== null && qs.get('clip') !== '0';
+const TOL  = 1;                       /* sub-pixel rounding is not a bug */
+
+const out = document.getElementById('out');
+const f = document.getElementById('f');
+f.style.width = W + 'px';
+f.style.height = H + 'px';
+f.src = SRC;
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const win = () => f.contentWindow;
+const doc = () => f.contentDocument;
+const engine = () => { const w = win(); return w && w.deck && typeof w.deck.seekP === 'function' ? w.deck : null; };
+
+/* Seek by STORY time through the engine's own API when it is there: the harness
+   then speaks the same units as the code under test, and the q/p conversion —
+   the commonest source of "I checked the wrong beat" — stops existing.
+   Falls back to raw scroll for pages without the engine. */
+function seekP(p){
+  const d = doc(); if(!d) return false;
+  d.documentElement.style.scrollBehavior = 'auto';
+  const eng = engine();
+  if(eng){ eng.seekP(p); return true; }
+  const deck = d.querySelector('[data-bs-deck], .bs-deck, .days-deck');
+  if(!deck) return false;
+  const w = win();
+  const top = deck.getBoundingClientRect().top + w.scrollY;
+  w.scrollTo({ top: Math.round(top + p * (deck.offsetHeight - w.innerHeight)), behavior: 'instant' });
+  return true;
+}
+
+function label(el){
+  let s = el.tagName.toLowerCase();
+  if(el.id) s += '#' + el.id;
+  if(el.classList.length) s += '.' + [...el.classList].join('.');
+  return s;
+}
+function painted(el, pin){
+  let n = el;
+  while(n && n !== pin.parentNode){
+    const cs = getComputedStyle(n);
+    if(cs.visibility === 'hidden' || cs.display === 'none') return false;
+    if(parseFloat(cs.opacity) <= 0.02) return false;
+    n = n.parentElement;
+  }
+  return true;
+}
+function ignored(el){
+  for(const sel of IGN){ try { if(el.matches(sel) || el.closest(sel)) return true; } catch(e){} }
+  return false;
+}
+
+/* ── clipped by an ANCESTOR, not by the viewport — opt in with &clip=1 ──────
+   A part that is supposed to rest straddling a card's edge is invisible if the
+   card has overflow:hidden. The viewport audit passes, nothing crosses the
+   screen, and the effect is silently gone. That is exactly how this demo
+   shipped its first pass with three chips and both A/B tags sliced off.
+
+   It is a NOTE and not a failure, because masks are legitimate: a roll window
+   clips parked narrator lines on purpose. Read it once per beat while
+   building, and look for anything you expected to see overhanging. */
+function ancestorClip(el, pin){
+  const r = el.getBoundingClientRect();
+  let n = el.parentElement;
+  while(n && n !== pin.parentNode){
+    const cs = getComputedStyle(n);
+    if(cs.overflow !== 'visible' || cs.overflowX !== 'visible' || cs.overflowY !== 'visible'){
+      const pr = n.getBoundingClientRect();
+      const out = Math.max(
+        Math.round(pr.left - r.left), Math.round(r.right - pr.right),
+        Math.round(pr.top - r.top),  Math.round(r.bottom - pr.bottom));
+      if(out > 1) return { by: n, out };
+    }
+    n = n.parentElement;
+  }
+  return null;
+}
+
+/* one measurement at the current scroll position */
+function measure(){
+  const w = win(), d = doc();
+  const pin = d && d.querySelector(PIN);
+  if(!pin) return { error: 'no pin matching ' + PIN };
+  const vw = w.innerWidth;
+  const rows = [], masked = [];
+  const all = pin.querySelectorAll('*');
+  for(const el of all){
+    if(el.tagName === 'STYLE' || el.tagName === 'SCRIPT') continue;
+    const r = el.getBoundingClientRect();
+    if(r.width < 2 || r.height < 2) continue;
+    if(!painted(el, pin)) continue;
+    if(ignored(el)) continue;
+    if(CLIP){
+      const c = ancestorClip(el, pin);
+      if(c) masked.push({ el, by: c.by, out: c.out });
+    }
+    const overL = Math.round(-r.left), overR = Math.round(r.right - vw);
+    if(overL <= TOL && overR <= TOL) continue;
+    rows.push({ el, overL, overR, worst: Math.max(overL, overR) });
+  }
+  /* drop a row if an ancestor is already reported with at least the same
+     overflow — naming the outermost offender is what you act on */
+  const keep = rows.filter(row => !rows.some(o =>
+    o !== row && o.el.contains(row.el) && o.worst >= row.worst));
+  keep.sort((a, b) => b.worst - a.worst);
+  const de = d.documentElement;
+  const eng = engine();
+  return {
+    vw, vh: w.innerHeight, walked: all.length, keep, masked,
+    hscroll: de.scrollWidth - de.clientWidth,
+    beat: eng ? eng.frame.beat + ':' + eng.frame.beatName : '?',
+    p: eng ? eng.frame.p : null,
+    scale: eng ? eng.frame.scale : null
+  };
+}
+
+function maskLines(m){
+  if(!m.masked || !m.masked.length) return [];
+  return m.masked.slice(0, 10).map(x =>
+    '        clip ' + x.out + 'px by ' + label(x.by).slice(0, 30) + '  →  ' + label(x.el).slice(0, 40));
+}
+
+function fmt(tag, m){
+  const L = [];
+  const head = tag.padEnd(26) + ' beat ' + String(m.beat).padEnd(14) +
+    (m.scale === null ? '' : 'scale ' + m.scale.toFixed(3) + '  ');
+  if(!m.keep.length && m.hscroll <= 1){
+    L.push('PASS  ' + head);
+    L.push(...maskLines(m));
+    return L;
+  }
+  L.push('FAIL  ' + head);
+  L.push(...maskLines(m));
+  for(const k of m.keep.slice(0, 10))
+    L.push('        ' + (k.overL > TOL ? 'L+' + k.overL + ' ' : '')
+                      + (k.overR > TOL ? 'R+' + k.overR + ' ' : '')
+                      + label(k.el).slice(0, 74));
+  if(m.hscroll > 1) L.push('        HORIZONTAL SCROLL ' + m.hscroll + 'px');
+  return L;
+}
+
+/* probe points: every beat's opening, midpoint and close, plus the very start
+   and end of the deck. Openings and closes are where things are in flight and
+   at their widest; midpoints are the resting composition. */
+function points(){
+  const eng = engine();
+  if(!eng) return [['q 0.10', 0.10], ['q 0.30', 0.30], ['q 0.50', 0.50], ['q 0.70', 0.70], ['q 0.90', 0.90]];
+  const pts = [['deck open', 0.005]];
+  for(const b of eng.map()){
+    const [s, e] = b.span;
+    pts.push([b.name + ' in', s + Math.min(0.02, (e - s) * 0.15)]);
+    pts.push([b.name + ' mid', (s + e) / 2]);
+    pts.push([b.name + ' out', e - Math.min(0.02, (e - s) * 0.15)]);
+  }
+  pts.push(['deck close', 0.995]);
+  return pts;
+}
+
+(async function(){
+  await new Promise(r => f.addEventListener('load', r, { once: true }));
+  /* fonts and images land late; a single measurement taken before either is a
+     measurement of a page that never existed */
+  try { await doc().fonts.ready; } catch(e){}
+  await sleep(450);
+
+  if(!SCAN){
+    const p = P !== null ? P : (Q !== null ? (engine() ? engine().toP(Q) : Q) : 0.5);
+    seekP(p);
+    await sleep(160);
+    const m = measure();
+    out.textContent = m.error ? m.error
+      : ['w=' + m.vw + ' h=' + m.vh + '  walked ' + m.walked + ' elements']
+        .concat(fmt('p=' + p.toFixed(3), m))
+        .concat(['doc scrollWidth-clientWidth = ' + m.hscroll]).join('\n');
+    return;
+  }
+
+  const lines = ['w=' + W + ' h=' + H + '  ' + SRC];
+  let fails = 0, worst = 0;
+  for(const [name, p] of points()){
+    seekP(p);
+    await sleep(140);                 /* let the frame settle before reading */
+    const m = measure();
+    if(m.error){ out.textContent = m.error; return; }
+    const block = fmt(name + ' p=' + p.toFixed(3), m);
+    if(block[0].startsWith('FAIL')){ fails++; if(m.keep[0]) worst = Math.max(worst, m.keep[0].worst); }
+    lines.push(...block);
+    out.textContent = lines.join('\n');
+  }
+  lines.push('');
+  lines.push(fails
+    ? 'VERDICT FAIL — ' + fails + ' point(s) clipped, worst ' + worst + 'px'
+    : 'VERDICT PASS — nothing crosses the viewport at any beat');
+  out.textContent = lines.join('\n');
+})();
+</script>
+</body>
+</html>

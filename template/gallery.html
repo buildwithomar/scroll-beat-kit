@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en" class="bs-nojs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>beat-scroll — the move gallery</title>
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     THE MOVE GALLERY. A REFERENCE, NOT A DECK.
+
+     One item (a window with chips around it) performs every move the skill
+     has an example of, one move per beat, while the text names the move and
+     what it could MEAN in a story:
+
+       0 assemble     the item resolves from a draft; chips dock on its edges
+       1 flip         rotateY to 180 — a back face
+       2 spin         a turn and a half more — degrees just add up
+       3 split ×2     B enters behind A and they part
+       4 split ×3     a third joins; on a narrow stage the row becomes a fan
+       5 fold         the copies slide home; the chips return
+       6 backflip     rotateX through 360
+       7 responsive   the window narrows into a phone and its content reflows
+       8 3D parts     isometric tilt; the layers lift apart in depth
+
+     A REAL deck is 4 beats (5 at most) — docs/GUIDE.md. Nine beats here is a
+     catalogue, deliberately longer than any deck should be. Borrow moves,
+     combine them, invent others: these are examples, not a menu.
+
+     The moves chain on one timeline (BeatScroll.poses): each beat states only
+     the pose it rests in, and starts from where the last one rested.
+
+       look     brand.css (every visual + motion token). Rebrand:
+                  node scripts/brand-from-url.cjs https://site.com --out brand.css
+                preview any brand:   demo.html?brand=path/to/brand.css
+       layout   data-layout on .bs-deck: stack | stack-below | split |
+                split-reverse.       preview:  demo.html?layout=split
+       visual   the window is a stand-in: any media can be the item.
+
+     ?beatdbg=1                 HUD: story time, beat map, working numbers
+     scripts/beat-capture.cjs   timing + position, measured from screenshots
+     data-bs-part   names a moving unit for beat-capture. KEEP when branding.
+     data-wf-label  wireframe annotation; hidden by --wf-labels:none.
+     ═══════════════════════════════════════════════════════════════════════ -->
+
+<!-- ?v= is bumped whenever the engine changes: a preview that caches the old
+     CSS next to a new script renders a broken deck. Bump both together. -->
+<link rel="stylesheet" href="beat-engine.css?v=7">
+<link rel="stylesheet" href="brand.css?v=7" id="brand">
+<script>
+/* ?brand=path.css swaps the brand file BEFORE first paint */
+(function () {
+  var b = new URLSearchParams(location.search).get('brand');
+  if (b) document.getElementById('brand').href = b;
+})();
+</script>
+<style>
+/* ══ THE DECK'S OWN CSS — NO BRAND VALUES BELOW THIS LINE ═══════════════════
+   Every colour, face, radius, border and shadow is a token from brand.css. */
+:root{ --bs-ref: 1040px; }
+*{box-sizing:border-box}
+body{margin:0;color:var(--ink);font:16px/1.5 var(--font-body);
+  -webkit-font-smoothing:antialiased;background-color:var(--bg);
+  background-image:var(--surface-image);background-size:var(--surface-size)}
+h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:var(--display-weight);
+  letter-spacing:var(--display-tracking);line-height:1.1}
+/* side padding lives on .wrap; sections set ONLY padding-block — a shorthand
+   there once zeroed the sides and ran the copy flush to the screen edge */
+.wrap{max-width:1100px;margin:0 auto;padding-inline:clamp(20px,5vw,40px)}
+.intro{padding-block:clamp(72px,16vh,180px) clamp(40px,8vh,96px)}
+.brand-logo{display:block;height:var(--logo-height,0);width:min(180px,50vw);
+  margin:0 0 22px;background:var(--brand-logo) left center/contain no-repeat}
+.intro h1{font-size:clamp(28px,4.6vw,50px);max-width:20ch}
+.intro p{color:var(--dim);max-width:56ch;margin:16px 0 0}
+.after{padding-block:clamp(72px,16vh,180px);border-top:var(--edge);margin-top:clamp(40px,8vh,96px)}
+.after h2{font-size:clamp(20px,2.6vw,30px)}
+.after p{color:var(--dim);max-width:58ch}
+em{font-style:normal;color:var(--em-color);text-decoration:var(--em-decoration);
+  text-decoration-thickness:2px;text-underline-offset:.18em}
+
+/* ── annotations (wireframe-only, switched by --wf-labels) ──────────────── */
+[data-wf-label]::after{content:attr(data-wf-label);position:absolute;display:var(--wf-labels);
+  font:600 9.5px/1 var(--font-mono);letter-spacing:.12em;text-transform:uppercase;
+  color:var(--dim);pointer-events:none;white-space:nowrap}
+/* bottom corner: at the top it sat over the tabs on a phone */
+.wf-bar{position:fixed;z-index:50;right:12px;bottom:12px;display:var(--wf-labels);
+  padding:6px 8px;border:var(--edge);border-radius:10px;background:var(--panel);
+  font:600 10px/1.9 var(--font-mono);letter-spacing:.06em;color:var(--dim)}
+.wf-bar a{color:var(--dim);text-decoration:none;padding:1px 5px;border-radius:5px}
+.wf-bar a[aria-current]{color:var(--ink);background:var(--fill)}
+
+/* ── the text: tabs + the narrator relay ───────────────────────────────── */
+.nar{position:relative;padding:0 clamp(14px,4vw,24px)}
+.nar::after{left:clamp(14px,4vw,24px);bottom:-22px;opacity:var(--narIn,0)}
+.bs-relay{outline:var(--wf-outline);outline-offset:6px}
+.nar-tabs{margin:0 0 20px;opacity:var(--narIn,0)}
+.bs-tabs{gap:6px}
+.bs-tab{position:relative;padding:4px 9px;border-radius:var(--radius-pill);
+  border:var(--edge);background:var(--panel);
+  font:600 10.5px/1.2 var(--font-mono);letter-spacing:.03em;color:var(--dim)}
+.bs-tab::before{content:"";position:absolute;inset:-1.5px;border-radius:var(--radius-pill);
+  background:var(--fill);border:var(--edge-strong);border-color:var(--accent);
+  opacity:var(--on,0);pointer-events:none;z-index:-1}
+.bs-tab.is-on{color:var(--ink)}
+.bs-tab:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.nar-line h3{font-size:clamp(22px,3vw,36px)}
+.nar-line h3 small{display:block;margin:0 0 8px;font:600 10px/1 var(--font-mono);
+  letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+.nar-line p{margin:10px 0 0;font-size:clamp(14px,1.5vw,16px);
+  line-height:1.45;color:var(--dim);max-width:56ch}
+
+/* ── the visual ────────────────────────────────────────────────────────────
+   Inside the stage, size against the STAGE (@container bs-stage, cqw).
+
+   The item is three nested boxes, and the split is the whole trick:
+     .slot   POSITION — the split's translate, the fan's tilt. Has its own
+             perspective, so each copy turns about its own centre.
+     .turn   ROTATION — flip, spin, backflip, the isometric tilt. preserve-3d,
+             so the two faces and the lifted layers stay in 3D.
+     .face   what you see — front and back, backface-visibility:hidden.
+   Merging slot and turn makes a split copy orbit the item instead of sliding
+   beside it. And nothing between .turn and the layers may carry opacity <1,
+   clip-path or overflow:hidden while the item is in 3D: each one silently
+   FLATTENS the subtree, and the layers fall back into one plane. */
+.bs-stage{padding:0 clamp(14px,4vw,24px)}
+.bs-stage::after{left:clamp(14px,4vw,24px);bottom:-26px}
+.pair{position:relative;display:flex;justify-content:center;width:100%}
+.slot{position:relative;width:min(520px,100%);flex:0 0 auto;perspective:1400px;
+  transform:translate3d(var(--x,0px),var(--y,0px),0) rotate(var(--tilt,0deg)) scale(var(--s,1))}
+.slot--copy{position:absolute;left:0;right:0;margin:0 auto;top:0}
+/* will-change on the few boxes that move every frame: each becomes its own
+   compositor layer, so moving it is a GPU job, not a repaint. Only these —
+   a layer per word or per chip-dot costs memory a phone does not have. */
+.slot,.turn{will-change:transform}
+.turn{position:relative;transform-style:preserve-3d;
+  transform:rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg)) rotateZ(var(--rz,0deg))}
+/* While the item TURNS, the faces sit a hair off the card's plane
+   (translateZ 0.1px): two faces in exactly one plane z-fight in Safari
+   mid-flip — the classic flicker. Only while turning (.is-turning, when the
+   chips are away): left on all the time it put the faces in front of the
+   chips, which a 3D scene stacks by depth, and lifting the chips 1px to
+   compensate made them re-rasterise as the page scrolled — a shimmer. */
+.face{backface-visibility:hidden;-webkit-backface-visibility:hidden}
+.turn.is-turning .face{transform:translateZ(.1px)}
+/* .card.face--back, not .face--back: the .card rule below sets
+   position:relative and, at equal specificity, would win — the back face then
+   stacks UNDER the front instead of behind it, and a flip reveals a sliver */
+.card.face--back{position:absolute;inset:0;transform:rotateY(180deg)}
+.turn.is-turning .card.face--back{transform:rotateY(180deg) translateZ(.1px)}
+/* Which face shows is DECIDED, not left to backface-visibility. WebKit stops
+   honouring backface-visibility the moment anything flattens the 3D (the
+   old shape move's filter and crop) and paints the later face on top — the
+   mirrored back showed through the 3D parts and replaced the phone crop,
+   in WebKit only. draw() works out which way the item faces from its own
+   angles and toggles .back-on; visibility does not flatten anything. */
+.turn .face--back{visibility:hidden}
+.turn.back-on .face--back{visibility:visible}
+.turn.back-on .face--front{visibility:hidden}
+.card{position:relative;width:100%;border-radius:var(--radius);
+  border:var(--edge);background:var(--panel);box-shadow:var(--shadow);overflow:hidden}
+.card::after{right:12px;top:11px}
+
+.bar{display:flex;align-items:center;gap:6px;padding:9px 12px;border-bottom:var(--edge)}
+.dot{width:7px;height:7px;border-radius:50%;border:1.5px solid var(--line)}
+.body{position:relative;aspect-ratio:16/11;padding:18px}
+@container bs-stage (max-width:620px){ .body{aspect-ratio:4/5} }
+
+/* the draft and the final state share a box; beat 0 crossfades them */
+.wire,.real{position:absolute;inset:18px;display:flex;flex-direction:column;gap:10px}
+.wire{opacity:calc(1 - var(--real,0))}
+.wire span{display:block;border-radius:5px;border:var(--edge)}
+.wire .w1{height:26%} .wire .w2{height:9%;width:70%} .wire .w3{height:9%;width:44%}
+.wire .w4{height:14%;width:34%}
+.wire span{animation:sheen 2.6s linear infinite}
+@keyframes sheen{0%{opacity:.45}50%{opacity:1}100%{opacity:.45}}
+.wire-off .wire span{animation:none}
+/* .real is NOT faded with opacity: an opacity below 1 on it would flatten the
+   3D layers inside it in beat 8. It is revealed by its parts' own opacity. */
+.real .ln{display:block;border-radius:4px;background:var(--fill);opacity:var(--real,0)}
+/* --m is "how mobile" the item is, 0 → 1, written by the responsive move.
+   Every proportion below slides with it, so as the window narrows the layout
+   REFLOWS continuously — the hero grows, the lines widen to the column, the
+   button stretches full width — instead of snapping at a breakpoint
+   mid-scroll, which would read as a glitch in a scrubbed animation. A real
+   item swaps in its own mobile layout the same way. */
+.real .hd{height:calc(22% + 14% * var(--m,0));width:calc(78% + 22% * var(--m,0));background:var(--fill-strong)}
+.real .l1{height:7%;width:calc(64% + 30% * var(--m,0))} .real .l2{height:7%;width:calc(52% + 30% * var(--m,0))}
+.cta{margin-top:auto;align-self:flex-start;opacity:var(--real,0);
+  min-width:max-content;width:calc(var(--m,0) * 100%);text-align:center;
+  font:600 10px/1 var(--font-mono);letter-spacing:.1em;text-transform:uppercase;
+  color:var(--on-accent);background:var(--accent);border-radius:var(--radius-pill);padding:8px 12px}
+
+/* the back face: a different layout, so the flip visibly reveals something */
+.back-body{position:absolute;inset:0;top:34px;padding:18px;display:flex;flex-direction:column;gap:9px}
+.back-body h5{margin:0 0 4px;font:600 9.5px/1 var(--font-mono);letter-spacing:.14em;
+  text-transform:uppercase;color:var(--dim)}
+.row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-top:var(--edge)}
+.row:first-of-type{border-top:0}
+.row span{font:11px/1.2 var(--font-mono);color:var(--dim)}
+.row b{width:30%;height:9px;border-radius:4px;background:var(--fill-strong)}
+
+/* ── 3D parts (beat 8) ─────────────────────────────────────────────────────
+   While .is-3d is on, the front face stops clipping and keeps its children
+   in 3D, and every layer lifts by --ex × its own --z. Toggled per frame, so it
+   comes off again when the reader scrubs back. */
+.is-3d .face--front, .is-3d .body, .is-3d .real{transform-style:preserve-3d}
+.is-3d .face--front{overflow:visible}
+/* depth in a fraction of the ITEM's width (cqw of the stage would drift with
+   the layout), so the stack rises in proportion on every screen */
+.lift{transform:translateZ(calc(var(--ex,0) * var(--z,0) * var(--zu,14px)))}
+
+/* ── responsive (beat 7): the window becomes a phone, and REFLOWS ─────────
+   Not a crop. A crop keeps the desktop layout and trims its edges off; this
+   narrows the item's real width and rounds its corners, and the content
+   re-lays itself out for the narrow column (--m, above). While it runs the
+   card is a fixed-height flex column, so the body fills the device instead of
+   shrinking with its 16:11 aspect ratio. It is the one move that changes
+   LAYOUT per frame: only the card's own subtree, only during its window, and
+   its height is pinned so nothing outside the card re-lays out. No clip-path
+   and no filter, so it never flattens the 3D either. */
+.card.is-device{display:flex;flex-direction:column;margin-inline:auto}
+.card.is-device .body{aspect-ratio:auto;flex:1 1 auto}
+/* the top bar moves in from the rounding corners, as a phone's status bar
+   does — at full radius the dots and the label sat inside the curve */
+.card.is-device .bar{padding-inline:calc(12px + 14px * var(--m,0))}
+.card.is-device::after{right:calc(12px + 14px * var(--m,0))}
+
+/* ── the chips: travel-led, as always ─────────────────────────────────────
+   Each rests straddling an edge and flies out along its own direction; its
+   opacity follows TRAVEL, so it only fades once it is clear of the item. They
+   live inside .turn, so the 3D beat lifts them highest. */
+.chips{position:absolute;inset:0;pointer-events:none;transform-style:preserve-3d}
+.chip{position:absolute;display:inline-flex;align-items:center;gap:6px;
+  padding:6px 10px;border-radius:var(--radius-pill);
+  font:600 10px/1 var(--font-mono);letter-spacing:.1em;text-transform:uppercase;
+  background:var(--panel);border:var(--edge-strong);color:var(--ink);box-shadow:var(--shadow);
+  white-space:nowrap;opacity:var(--o,0);
+  /* travel is a fraction of the ITEM (--ct, written by draw): a fixed 74px
+     was a fifth of a phone and flew the chips in from off-screen */
+  /* depth only from the 3D move: in a preserve-3d scene the browser stacks
+     by depth, so the faces must not sit in front of the chips while the
+     chips are out (see .is-turning) */
+  transform:translate3d(calc(var(--dx) * var(--out,1) * var(--ct,60px)),calc(var(--dy) * var(--out,1) * var(--ct,60px)),calc(var(--ex,0) * 8 * var(--zu,14px)))}
+.chip i{width:6px;height:6px;border-radius:50%;background:var(--accent)}
+.chip:nth-child(1){left:-16px;top:38%;--dx:-1;--dy:0}
+.chip:nth-child(2){right:-16px;top:20%;--dx:1;--dy:0}
+.chip:nth-child(3){right:-16px;top:64%;--dx:1;--dy:0}
+.chip:nth-child(4){left:24%;top:-14px;--dx:0;--dy:-1}
+
+.tag{position:absolute;top:-30px;left:50%;transform:translateX(-50%);
+  font:600 10px/1 var(--font-mono);letter-spacing:.1em;text-transform:uppercase;
+  border:var(--edge);border-radius:var(--radius-pill);padding:5px 9px;
+  background:var(--panel);opacity:var(--tagO,0)}
+.tag b{color:var(--dim);font-weight:600}
+</style>
+</head>
+<body>
+
+<nav class="wf-bar" id="wfbar" aria-label="wireframe layout switcher"></nav>
+
+<div class="wrap intro">
+  <span class="brand-logo" aria-hidden="true"></span>
+  <h1>One item, <em>every move.</em></h1>
+  <p>Scroll. A window with chips around it performs each move the skill has an
+     example of: flip, spin, split, fold, backflip, go responsive, come apart in
+     3D. The text says what each move could mean in a story. A real deck picks
+     four and makes them say something; these are a starting vocabulary, not
+     the limit of it.</p>
+</div>
+
+<section class="bs-section">
+  <div class="bs-deck" id="deck" data-layout="stack">
+    <div class="bs-pin" id="pin">
+
+      <div class="bs-text nar" data-wf-label="text · narrator relay — one block at a time">
+        <div class="nar-tabs" id="tabs"></div>
+        <div id="roll">
+          <div class="bs-line nar-line" data-bs-part="line:assemble">
+            <h3><small>Move 0 · assemble</small>An item, with <em>chips around it.</em></h3>
+            <p>The draft resolves and the chips dock on its edges. The item can be any product, plan, page or offer; the chips are its features, integrations or proof.</p>
+          </div>
+          <div class="bs-line nar-line" data-bs-part="line:flip">
+            <h3><small>Move 1 · flip</small>Flip it to <em>the other side.</em></h3>
+            <p>rotateY to 180° reveals a back face. Use it for before and after, problem and fix, or the customer's view and yours.</p>
+          </div>
+          <div class="bs-line nar-line" data-bs-part="line:spin">
+            <h3><small>Move 2 · spin</small>Spin it <em>a turn and a half.</em></h3>
+            <p>Degrees just add up, so 540° is simply a longer move. Use it for a reveal, "from every angle", or a change of state.</p>
+          </div>
+          <div class="bs-line nar-line" data-bs-part="line:split2">
+            <h3><small>Move 3 · split ×2</small>Split it <em>into two.</em></h3>
+            <p>B enters behind A, then they part. A/B variants, old and new, you and them.</p>
+          </div>
+          <div class="bs-line nar-line" data-bs-part="line:split3">
+            <h3><small>Move 4 · split ×3</small>Then <em>into three.</em></h3>
+            <p>A third joins the row: pricing tiers, three use cases, good, better, best. On a narrow stage the row becomes a fanned hand.</p>
+          </div>
+          <div class="bs-line nar-line" data-bs-part="line:fold">
+            <h3><small>Move 5 · fold</small>Fold back <em>into one.</em></h3>
+            <p>The copies slide home behind the original, and the chips return. Many tools become one platform; the options collapse into the answer.</p>
+          </div>
+          <div class="bs-line nar-line" data-bs-part="line:backflip">
+            <h3><small>Move 6 · backflip</small>Do a <em>backflip.</em></h3>
+            <p>rotateX through 360°. The camera budgets the extra height a flip paints under perspective. Use it sparingly; it's a celebration.</p>
+          </div>
+          <div class="bs-line nar-line" data-bs-part="line:responsive">
+            <h3><small>Move 7 · responsive</small>Make it <em>responsive.</em></h3>
+            <p>The window narrows into a phone and its content reflows to fit, not cropped but re-laid out. Use it for "works on every device", desktop to mobile, or page to app.</p>
+          </div>
+          <div class="bs-line nar-line" data-bs-part="line:explode">
+            <h3><small>Move 8 · 3D parts</small>Take it apart <em>in 3D.</em></h3>
+            <p>The item tilts isometric and its layers lift apart in depth. Use it for what's under the hood, how it's built, or the stack behind the screen.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="bs-stage" data-wf-label="visual · .bs-stage — any media">
+        <div class="bs-scale">
+          <div class="pair" id="pair">
+
+            <div class="slot slot--main" id="slot0" data-bs-part="item">
+              <div class="tag"><b>Variant</b> A</div>
+              <div class="turn" id="turn0">
+                <div class="card face face--front" id="card0" data-wf-label="item · front">
+                  <div class="bar lift" style="--z:1"><i class="dot"></i><i class="dot"></i><i class="dot"></i></div>
+                  <div class="body">
+                    <div class="wire"><span class="w1"></span><span class="w2"></span><span class="w3"></span><span class="w4"></span></div>
+                    <div class="real" data-bs-part="final-state">
+                      <span class="ln hd lift" style="--z:3"></span>
+                      <span class="ln l1 lift" style="--z:4.5"></span>
+                      <span class="ln l2 lift" style="--z:5.5"></span>
+                      <span class="cta lift" style="--z:7">Action</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="card face face--back" data-wf-label="item · back">
+                  <div class="bar"><i class="dot"></i><i class="dot"></i><i class="dot"></i></div>
+                  <div class="back-body">
+                    <h5>The other side</h5>
+                    <div class="row"><span>before</span><b></b></div>
+                    <div class="row"><span>after</span><b></b></div>
+                    <div class="row"><span>result</span><b></b></div>
+                  </div>
+                </div>
+                <div class="chips">
+                  <span class="chip" data-bs-part="chip-1"><i></i>Chip 1</span>
+                  <span class="chip" data-bs-part="chip-2"><i></i>Chip 2</span>
+                  <span class="chip" data-bs-part="chip-3"><i></i>Chip 3</span>
+                  <span class="chip" data-bs-part="chip-4"><i></i>Chip 4</span>
+                </div>
+              </div>
+            </div>
+            <!-- copies B and C are cloned from the item's front face by the
+                 script, so there is one item to edit, not three -->
+
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<div class="wrap after">
+  <h2>The deck releases here.</h2>
+  <p>A real deck is four of these moves, chosen because they say something
+     about the product. The section that follows doesn't depend on the
+     sequence; the deck hands the page back cleanly.</p>
+</div>
+
+<script src="beat-engine.js?v=7"></script>
+<script>
+(function () {
+  var pin   = document.getElementById('pin');
+  var deckEl= document.getElementById('deck');
+  var stage = document.querySelector('.bs-stage');
+  var text  = document.querySelector('.bs-text');
+  var pair  = document.getElementById('pair');
+  var slot0 = document.getElementById('slot0');
+  var turn0 = document.getElementById('turn0');
+  var card0 = document.getElementById('card0');
+  var chips = [].slice.call(document.querySelectorAll('.chips .chip'));
+
+  /* ?layout= previews a layout; a real deck just sets data-layout */
+  var LAYOUTS = ['stack', 'stack-below', 'split', 'split-reverse'];
+  var qs = new URLSearchParams(location.search);
+  if (LAYOUTS.indexOf(qs.get('layout')) >= 0) deckEl.setAttribute('data-layout', qs.get('layout'));
+  var bar = document.getElementById('wfbar'), cur = deckEl.getAttribute('data-layout');
+  bar.appendChild(document.createTextNode('layout '));
+  LAYOUTS.forEach(function (l) {
+    var p = new URLSearchParams(location.search); p.set('layout', l);
+    var a = document.createElement('a'); a.href = '?' + p.toString(); a.textContent = l;
+    if (l === cur) a.setAttribute('aria-current', 'true');
+    bar.appendChild(a);
+  });
+
+  /* ── the copies for the splits: cloned from the item's front face ───── */
+  var slots = [slot0];
+  ['B', 'C'].forEach(function (v, i) {
+    var s = document.createElement('div');
+    s.className = 'slot slot--copy';
+    s.setAttribute('aria-hidden', 'true');
+    s.setAttribute('data-bs-part', 'copy-' + v.toLowerCase());
+    var tag = slot0.querySelector('.tag').cloneNode(true);
+    tag.lastChild.nodeValue = ' ' + v;
+    var face = card0.cloneNode(true);
+    face.removeAttribute('id');
+    face.classList.remove('face', 'face--front');
+    face.setAttribute('data-wf-label', 'copy ' + v.toLowerCase());
+    face.querySelectorAll('[data-bs-part]').forEach(function (n) { n.removeAttribute('data-bs-part'); });
+    s.appendChild(tag); s.appendChild(face);
+    pair.appendChild(s);
+    slots.push(s);
+  });
+
+  var narr = BeatScroll.rows('#roll', { item: '.bs-line' });
+
+  /* ── the beats: equal spans, one move each ─────────────────────────────
+     A gallery catalogue — nine. A real deck: four. */
+  var NAMES = ['assemble', 'flip', 'spin', 'split2', 'split3', 'fold', 'backflip', 'responsive', 'explode'];
+  var LABEL = ['assemble', 'flip', 'spin', 'split ×2', 'split ×3', 'fold', 'backflip', 'responsive', '3D parts'];
+  /* The last beat is shorter: it has no hand-off to rest before, only the
+     page's release, and at full length its hold ran 0.65 of a screen on a
+     1024×768 split — long enough to read as a stall. */
+  var WEIGHT = NAMES.map(function (n, i) { return i === NAMES.length - 1 ? 0.75 : 1; });
+  var TOTAL = WEIGHT.reduce(function (a, b) { return a + b; }, 0), acc = 0;
+  var beats = NAMES.map(function (n, i) {
+    var s = acc / TOTAL; acc += WEIGHT[i];
+    return { name: n, span: [s, i === NAMES.length - 1 ? 1 : acc / TOTAL] };
+  });
+
+  /* ── the moves, as rest poses on one timeline ──────────────────────────
+     Each step names only what it changes. `stage` gives a property its own
+     window inside the beat (as fractions of the beat): retract the chips,
+     THEN flip; widen back to desktop, THEN explode. */
+  /* Every move is DONE by half-way through its beat, so it rests before the
+     caption hands off. With nine short beats, moves that ran to 0.6–0.75 of
+     the beat were still moving when the next caption arrived, and
+     beat-capture reported "never rests" for all eight. */
+  /* The rest has to clear the TABS too: their highlight crossfades from
+     `fade` (0.03 of story) before each boundary — a quarter of a beat this
+     short. Finishing at 0.5 left two frames of stillness, which
+     beat-capture rightly called no rest at all. */
+  var MOVE = [0.04, 0.42];
+  var tl = BeatScroll.poses(
+    { real: 0, chips: 0, ry: 0, rx: 0, rz: 0, panes: 1, shape: 0, ex: 0 },
+    [
+      /* 0 assemble */ { pose: { real: 1, chips: 1 }, stage: { real: [0.02, 0.26], chips: [0.15, 0.42] } },
+      /* 1 flip     */ { pose: { chips: 0, ry: 180 }, stage: { chips: [0.02, 0.14], ry: [0.1, 0.42] } },
+      /* 2 spin     */ { pose: { ry: 720 }, move: MOVE },
+      /* 3 split ×2 */ { pose: { panes: 2 }, move: MOVE },
+      /* 4 split ×3 */ { pose: { panes: 3 }, move: MOVE },
+      /* 5 fold     */ { pose: { panes: 1, chips: 1 }, stage: { panes: [0.03, 0.3], chips: [0.22, 0.42] } },
+      /* 6 backflip */ { pose: { chips: 0, rx: 360 }, stage: { chips: [0.02, 0.12], rx: [0.08, 0.42] } },
+      /* 7 responsive */ { pose: { shape: 1 }, move: MOVE },
+      /* 8 3D parts */ { pose: { shape: 0, ex: 1, rx: 415, rz: -35, chips: 1 },
+                         stage: { shape: [0.02, 0.16], ex: [0.16, 0.42], rx: [0.14, 0.42], rz: [0.14, 0.42], chips: [0.26, 0.42] } }
+    ]);
+
+  /* ── the split geometry, as a function of the pane count ─────────────
+     Offsets are in ITEM WIDTHS, so they mean the same on every screen.
+     panes runs 1 → 2 → 3 → 1 continuously, so the copies slide out from
+     behind the item and back behind it — never pop. */
+  function paneOffsets(c) {
+    var two = [-0.56, 0.56, 0], three = [-1.12, 0, 1.12];
+    if (c <= 2) { var t = Math.max(0, c - 1); return [two[0] * t, two[1] * t, 0]; }
+    var u = Math.min(1, c - 2);
+    return [two[0] + (three[0] - two[0]) * u, two[1] + (three[1] - two[1]) * u, three[2] * u];
+  }
+
+  /* per-element writes, skipped when unchanged — the panes are three elements,
+     not one pin, so they cannot share the engine's write cache */
+  var sizes = null;              /* measured layout sizes, see read() */
+  var wrote = new Map();
+  function put(el, name, v) {
+    var key = wrote.get(el) || {}; if (key[name] === v) return;
+    key[name] = v; wrote.set(el, key); el.style.setProperty(name, v);
+  }
+
+  window.deck = BeatScroll.create({
+    deck: '#deck', pin: '#pin', stage: '.bs-stage',
+    story: { vh: 1080, at: [{ maxWidth: 820, vh: 920 }] },
+    beats: beats,
+    /* Nine beats are short, so both hand-offs are narrowed to leave each move
+       room to rest: the caption relay (story time each side of a boundary)
+       and `fade`, the tabs' crossfade. At the 4-beat defaults (0.032 / 0.03)
+       they ate a quarter of every beat here, and on a phone the flip's rest
+       shrank to two frames. A real 4-beat deck keeps the defaults. */
+    relay: 0.02,
+    fade: 0.02,
+    tabs: { into: '#tabs', label: function (b, i) { return LABEL[i]; } },
+
+    /* ── the camera, from the move's footprint ─────────────────────────────
+       Every move declares how much room it takes, measured in item sizes:
+       a split of three spans ~3.2 items, a backflip paints taller than the
+       item under perspective, the isometric tilt is wider than the item and
+       its layers rise. The camera is the pull-back that fits that footprint
+       into the stage — width AND height. Nothing is typed per breakpoint. */
+    scale: function (f, m) {
+      var P = tl.at(f), narrow = m.stageW < 640, D = Math.PI / 180;
+      var W = m.cardW, H = m.cardH;
+      /* split: the camera zooms about the CENTRE, so the budget is twice the
+         farthest copy from it — not the row's span. Mid-transition (2 → 3,
+         3 → 1) the row is lopsided, and a span budget let its long side
+         slide off the screen while the short side had room to spare. */
+      var off = paneOffsets(P.panes), k = narrow ? 0.42 : 1;
+      var spanW = 1 + 2 * k * Math.max(Math.abs(off[0]), Math.abs(off[1]), Math.abs(off[2]));
+      /* rotation: the item's ROTATED bounding box, from its real width,
+         height and angles — not a factor guessed from a desktop card. A tall
+         phone card turned 35° is far wider than a wide desktop one, and the
+         guess clipped it on every phone. */
+      var rz = Math.abs(P.rz * D), tilt = ((P.rx % 360) + 360) % 360 * D;
+      var flatW = W * Math.cos(rz) + H * Math.sin(rz);
+      var flatH = W * Math.sin(rz) + H * Math.cos(rz);
+      var lift  = 8 * W * 0.026 * Math.abs(Math.sin(tilt)) * P.ex;        /* the layers' rise */
+      var flipH = H * (1 + 0.2 * Math.abs(Math.sin(tilt)));               /* perspective on a flip */
+      /* a turn about EITHER axis widens the near edge under perspective:
+         about Y the near side, about X the near edge — a backflip clipped a
+         414px phone by 3px before the X term was here */
+      var persp = 0.06 * Math.abs(Math.sin(P.ry * D)) + 0.08 * Math.abs(Math.sin(tilt)) * (1 - P.ex);
+      var footW = flatW * (1 + persp) * spanW;
+      var footH = flipH + (flatH * Math.abs(Math.cos(tilt)) + lift - flipH) * P.ex;
+      /* chips straddle the edges and arrive from a little beyond them */
+      var chipPad = (32 + W * 0.12) * P.chips;
+      var needW = (m.stageW * 0.94) / (footW + chipPad);
+      var needH = m.availH / (footH + chipPad * 0.6);
+      f.note('needW', needW); f.note('needH', needH);
+      return Math.max(0.25, Math.min(1, needW, needH));
+    },
+
+    /* ── all reads — and only when the layout can have changed ─────────────
+       Sizes do not change while scrolling (transforms never move a layout
+       box), so they are measured on init / resize / fonts and reused on every
+       scroll frame. Reading them per frame forced a layout per frame, right
+       after the previous frame's writes: the classic cause of a deck that is
+       smooth on a desktop and stutters on a phone. */
+    read: function (f) {
+      if (f.why !== 'scroll' || !sizes) {
+        narr.measure();
+        var split = deckEl.getAttribute('data-layout').indexOf('split') === 0 && innerWidth > 820;
+        var ph = pin.clientHeight;
+        sizes = {
+          /* the SLOT's width, not the card's: the responsive move narrows the
+             card, and a re-measure mid-move must still see the full item */
+          cardW: slot0.offsetWidth, cardH: card0.offsetHeight, stageW: stage.clientWidth,
+          /* the height the visual may use: the whole pin beside the text in a
+             split, what the text leaves over in a stack */
+          availH: split ? ph * 0.84 : Math.max(160, ph - text.offsetHeight - 110)
+        };
+      }
+      return sizes;
+    },
+
+    /* ── all writes ───────────────────────────────────────────────────────── */
+    draw: function (f, m) {
+      var P = tl.at(f), narrow = m.stageW < 640;
+      f.set('narIn', f.ramp(0.004, 0.03));
+
+      /* 0 · assemble: the draft resolves; .real's PARTS fade, not .real */
+      f.set('real', P.real);
+      f.toggle(pin, 'wire-off', P.real > 0.995);
+
+      /* rotation: flip, spin, backflip and the isometric tilt are all one
+         transform on .turn — the timeline has already chained them. Written
+         ON .turn, not the pin: a custom property on the pin restyles the
+         whole deck every frame it changes, and these change every frame of
+         every move. */
+      put(turn0, '--rx', P.rx.toFixed(2) + 'deg');
+      put(turn0, '--ry', P.ry.toFixed(2) + 'deg');
+      put(turn0, '--rz', P.rz.toFixed(2) + 'deg');
+      /* the front's normal, after rotateX · rotateY (rotateZ spins within
+         the plane and never turns it away): it points at the viewer when
+         cos(rx)·cos(ry) > 0. The swap happens edge-on, where neither face
+         has any width, so it is never seen. */
+      var D = Math.PI / 180;
+      f.toggle(turn0, 'back-on', Math.cos(P.rx * D) * Math.cos(P.ry * D) < 0);
+      /* the anti-flicker face nudge, only while the chips are away — every
+         turn retracts them first, so the two never meet */
+      f.toggle(turn0, 'is-turning', P.chips < 0.35);
+
+      /* 3 · 4 · 5 · split and fold: copies slide out from behind and home */
+      var off = paneOffsets(P.panes), k = narrow ? 0.42 : 1;
+      for (var i = 0; i < slots.length; i++) {
+        var o = off[i] * k;
+        put(slots[i], '--x', (o * m.cardW).toFixed(1) + 'px');
+        /* a narrow stage fans the row like a hand of cards instead */
+        put(slots[i], '--tilt', (narrow ? o * 9 : 0).toFixed(2) + 'deg');
+        put(slots[i], '--y', (narrow ? Math.abs(o) * 22 : 0).toFixed(1) + 'px');
+        /* the copy nearest the centre is in front */
+        put(slots[i], 'z-index', String(10 - Math.round(Math.abs(off[i]) * 4) - (i ? 1 : 0)));
+        if (i) put(slots[i], 'opacity', (i === 1 ? f.clamp(P.panes - 1) : f.clamp(P.panes - 2)).toFixed(3));
+      }
+      var tags = f.clamp(P.panes - 1);
+      slots.forEach(function (s) { put(s, '--tagO', tags.toFixed(3)); });
+
+      /* 7 · responsive: the window narrows to a phone's proportions and its
+         content reflows to the new width (--m drives the layout, CSS above) */
+      var sh = P.shape, device = sh > 0.002;
+      f.toggle(card0, 'is-device', device);
+      if (device) {
+        var W = m.cardW, H = m.cardH;
+        var tw = Math.min(W, H * 0.52);                 /* phone: ~0.52 wide per tall */
+        put(card0, 'width', (W + (tw - W) * sh).toFixed(1) + 'px');
+        put(card0, 'height', H.toFixed(1) + 'px');      /* pinned: the slot never re-lays out */
+        put(card0, 'border-radius', (12 + (tw * 0.12 - 12) * sh).toFixed(1) + 'px');
+        put(card0, '--m', sh.toFixed(3));
+      } else {
+        put(card0, 'width', ''); put(card0, 'height', ''); put(card0, 'border-radius', ''); put(card0, '--m', '0');
+      }
+
+      /* 8 · 3D parts: only in 3D while it is exploding, and only once the
+         item is back at full width — the layers lift off the desktop layout */
+      /* depth and chip travel live on .turn too: everything that reads them
+         (the layers, the chips) is inside it */
+      put(turn0, '--ex', P.ex.toFixed(3));
+      put(turn0, '--zu', (m.cardW * 0.026).toFixed(1) + 'px');   /* one depth step = 2.6% of the item */
+      put(turn0, '--ct', (m.cardW * 0.12).toFixed(1) + 'px');    /* chip travel = 12% of the item */
+      f.toggle(turn0, 'is-3d', P.ex > 0.002 && sh <= 0.002);
+
+      /* chips: travel-led. Staggered on the way in, out the same way */
+      for (var c = 0; c < chips.length; c++) {
+        var a = f.ease(f.clamp((P.chips - c * 0.12) / 0.64));
+        var out = 1 - a;
+        put(chips[c], '--out', out.toFixed(3));
+        put(chips[c], '--o', (1 - f.clamp((out - 0.3) / 0.45)).toFixed(3));
+      }
+
+      f.note('pose', P.beat + ' ' + NAMES[P.beat]);
+      f.note('panes', P.panes);
+
+      /* the narrator relays: never two blocks at once */
+      for (var b = 0; b < narr.blocks.length; b++) {
+        var rl = f.relay(b);
+        narr.draw(b, rl.enter, rl.exit);
+      }
+    }
+  });
+})();
+</script>
+</body>
+</html>

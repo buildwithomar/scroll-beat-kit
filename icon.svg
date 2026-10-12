@@ -1,0 +1,30 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Scroll Beat Kit">
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1FB7C9"/>
+      <stop offset="0.55" stop-color="#1585B8"/>
+      <stop offset="1" stop-color="#1A4FA0"/>
+    </linearGradient>
+  </defs>
+
+  <!-- tile -->
+  <rect width="512" height="512" rx="116" fill="url(#tile)"/>
+
+  <!-- the split: two copies fanning out from behind the item -->
+  <rect x="96" y="150" width="148" height="172" rx="22" fill="none" stroke="#FFFFFF" stroke-width="16" opacity="0.38"
+        transform="rotate(-9 170 236)"/>
+  <rect x="268" y="150" width="148" height="172" rx="22" fill="none" stroke="#FFFFFF" stroke-width="16" opacity="0.38"
+        transform="rotate(9 342 236)"/>
+
+  <!-- the item, in front -->
+  <rect x="172" y="132" width="168" height="196" rx="24" fill="#FFFFFF"/>
+  <rect x="196" y="164" width="96" height="16" rx="8" fill="#1585B8" opacity="0.55"/>
+  <rect x="196" y="194" width="120" height="12" rx="6" fill="#1585B8" opacity="0.28"/>
+  <rect x="196" y="216" width="88" height="12" rx="6" fill="#1585B8" opacity="0.28"/>
+  <rect x="196" y="282" width="62" height="22" rx="11" fill="#1A4FA0"/>
+
+  <!-- the scroll track, with the lime playhead -->
+  <rect x="136" y="380" width="240" height="14" rx="7" fill="#FFFFFF" opacity="0.30"/>
+  <rect x="136" y="380" width="128" height="14" rx="7" fill="#FFFFFF"/>
+  <circle cx="264" cy="387" r="22" fill="#D2FF66"/>
+</svg>
