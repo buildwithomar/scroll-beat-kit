@@ -1,29 +1,27 @@
 {
   "id": "scroll-beat-kit",
   "name": "Scroll Beat Kit",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "owner": "buildwithomar",
   "license": "community",
   "type": "design-kit",
   "summary": "Build scroll-driven 'beat' sections: a pinned stage where text and a visual move through four beats as the reader scrolls. The visual can be a product window, image, video or embed, and the moves include flip, spin, split into two or three, fold back into one, backflip, go responsive, and come apart in 3D. Ships a tested engine, a live gallery of every move, four text/visual layouts, one-file branding generated from any website URL, and checks that prove each deck is unclipped, well-timed and smooth in Safari and Chrome, on desktop and phone.",
   "tagline": "Scroll-driven product stories, rebranded from a URL",
   "tags": [
-    "scroll",
-    "scrollytelling",
-    "animation",
-    "sticky",
-    "product-demo",
-    "landing-page",
-    "html",
+    "design",
+    "web",
+    "marketing",
     "template",
-    "design-system"
+    "content"
   ],
+  "prompt": "The Scroll Beat Kit is installed at granular-resources/scroll-beat-kit/ (a read-only reference). It builds scroll-driven 'beat' sections: a pinned stage where text and a visual move through four beats as the reader scrolls. FIRST read granular-work/scroll-beat-kit/ (STATE.md, LOG.md, ASSETS.md): if STATE.md exists you are CONTINUING - load the brand and decks it records, don't re-ask what it answers, and pick up where it left off. Then read granular-resources/scroll-beat-kit/RESOURCE.md - its rules are binding - and follow its setup: if scroll/ doesn't exist, copy granular-resources/scroll-beat-kit/template/ to scroll/ (never overwrite an existing scroll/ or deck). Start a local server in scroll/ (python3 -m http.server 8769) and open the move gallery with set_preview (http://localhost:8769/gallery.html) so I can see what the kit can do. If this is a fresh start, ask me three things in ONE message: (1) what I build, (2) what the page is for, and (3) the website URL to take the brand from. When I give the URL, generate the brand with scroll/scripts/brand-from-url.cjs into a new deck folder and show me the gallery wearing my brand (gallery.html?brand=<deck>/brand.css) before proposing anything. Then propose four beats back as a table - the move each one uses and the line it says - and build only once I've approved them. Record the setup in STATE.md and every deck in ASSETS.md and LOG.md as you go. Keep me posted in plain English.",
+  "onInstall": "session",
   "seed": {
     "mode": "immediate",
-    "prompt": "The Scroll Beat Kit is now installed in this project as scroll/. It builds scroll-driven 'beat' sections: a pinned stage where text and a visual move through four beats as the reader scrolls. First read scroll/RESOURCE.md - its rules are binding - and follow its setup step (never overwrite an existing deck). Then start a local server in scroll/ (python3 -m http.server 8769) and open the move gallery with set_preview (http://localhost:8769/gallery.html) so I can see what the kit can do. Then ask me three things in ONE message: (1) what I build, (2) what the page is for, and (3) the website URL to take the brand from. When I give the URL, generate the brand with scripts/brand-from-url.cjs into a new deck folder and show me the gallery wearing my brand (gallery.html?brand=<deck>/brand.css) before proposing anything. Then propose four beats back as a table - the move each one uses and the line it says - and build only once I've approved them. Keep me posted in plain English as you go."
+    "prompt": "The Scroll Beat Kit is installed at granular-resources/scroll-beat-kit/ (a read-only reference). It builds scroll-driven 'beat' sections: a pinned stage where text and a visual move through four beats as the reader scrolls. FIRST read granular-work/scroll-beat-kit/ (STATE.md, LOG.md, ASSETS.md): if STATE.md exists you are CONTINUING - load the brand and decks it records, don't re-ask what it answers, and pick up where it left off. Then read granular-resources/scroll-beat-kit/RESOURCE.md - its rules are binding - and follow its setup: if scroll/ doesn't exist, copy granular-resources/scroll-beat-kit/template/ to scroll/ (never overwrite an existing scroll/ or deck). Start a local server in scroll/ (python3 -m http.server 8769) and open the move gallery with set_preview (http://localhost:8769/gallery.html) so I can see what the kit can do. If this is a fresh start, ask me three things in ONE message: (1) what I build, (2) what the page is for, and (3) the website URL to take the brand from. When I give the URL, generate the brand with scroll/scripts/brand-from-url.cjs into a new deck folder and show me the gallery wearing my brand (gallery.html?brand=<deck>/brand.css) before proposing anything. Then propose four beats back as a table - the move each one uses and the line it says - and build only once I've approved them. Record the setup in STATE.md and every deck in ASSETS.md and LOG.md as you go. Keep me posted in plain English."
   },
   "tile": {
-    "color": "cyan",
+    "color": "sky",
     "glyph": "layers",
     "icon": "icon.svg"
   },

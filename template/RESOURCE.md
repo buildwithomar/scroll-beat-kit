@@ -5,6 +5,25 @@ visual** move through a short sequence of beats as the reader scrolls. The reade
 is the timeline: no autoplay, no snapping, and scrolling back up undoes everything exactly.
 These rules are BINDING for scroll-section work in this project.
 
+## Continuity - read your state FIRST (BINDING)
+
+This installed folder (`granular-resources/scroll-beat-kit/`) is a READ-ONLY reference: a
+creator update replaces it wholesale. Never write decks, brands or notes into it.
+
+On every run, before anything else, read `granular-work/scroll-beat-kit/`:
+
+- `STATE.md`: the remembered setup (brand URL, product, page purpose, preferred layout,
+  the decks so far and which is current). **If it exists you are CONTINUING**: load it,
+  don't re-ask what it already answers, and never restart from scratch.
+- `LOG.md`: append-only run history, one dated line per run (what was built or changed).
+- `ASSETS.md`: pointers to everything produced (each deck folder, each bundle in `dist/`).
+
+If they're absent, create them as you go. After producing anything, append to `LOG.md` and
+`ASSETS.md`, update `STATE.md`, and drop a pointer note in the brain if the project has one.
+
+**Default output folder: `<project>/scroll/`**, which the user owns (they can name another).
+Setup copies this resource's `template/` there; every deck is `scroll/<deck>/`.
+
 The full guide is `scroll/docs/GUIDE.md`, with the depth in `scroll/docs/` (the interview,
 the motion model, responsive rules, verification). Read the guide before writing your first
 deck, and `docs/model.md` before your first `draw()`.
@@ -25,7 +44,8 @@ Copied into the project as `scroll/` (never clobber, see below):
 
 ## Setting up (detect FIRST — never clobber)
 
-1. **No `scroll/` yet** → copy `template/` from this resource to `<project>/scroll/`.
+1. **No `scroll/` yet** → copy `granular-resources/scroll-beat-kit/template/` to
+   `<project>/scroll/` (copy, never move or link; the installed copy stays untouched).
 2. **`scroll/` exists** → do NOT re-scaffold. Say it's set up, and offer a new deck in it.
 3. **Each deck is its own folder**: `scroll/<deck-name>/` with `index.html`, `brand.css` (and
    that brand's fonts), `brief.md` and `beatmap.md`. **Never overwrite an existing deck**; make

@@ -17,7 +17,7 @@ Rebrand it from any website URL, and prove every deck is unclipped, well-timed a
 | `manifest.json` | Library metadata (id, tags, tile, seed prompt). |
 | `RESOURCE.md` | The binding contract an agent follows when building a deck. |
 | `icon.svg` | The library tile. |
-| `template/` | The files copied into a project as `scroll/` when the resource is installed. |
+| `template/` | The kit. On first run the agent copies it into the project as `scroll/`, a folder you own. |
 | `template/gallery.html` | **The move gallery**: one item performing every move, with what each can mean. |
 | `template/beat-engine.js` / `.css` | The engine: story time, the narrator relay, the camera, layouts, fallbacks. |
 | `template/brand.css` | Every look and motion token. Neutral wireframe by default. |
